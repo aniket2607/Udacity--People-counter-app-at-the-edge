@@ -1,8 +1,4 @@
-# People Counter application
 
-A people counter app optimized to work with very little latency to work
-on edge. The model is optimized with Intel [Open Vino toolkit](https://software.intel.com/content/www/us/en/develop/tools/openvino-toolkit.html). This repo also demonstrates how inference could take 
-place with a video.
 
 ## Explaining Custom Layers
 
