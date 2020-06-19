@@ -6,92 +6,9 @@ place with a video.
 
 ## Explaining Custom Layers
 
-Let us first see a worksflow of how Open Vino toolkit converts models 
-for us. First the model optimizer searches the list of known layers for 
-each layer in the input model. The inference engine thenn loads the  
-layers from the input model IR files into the specified device plugin, 
-which will search a list of known layer implementations for the device. 
-If your model architecure contains layer or layers that are not in the 
-list of known layers for the device, the Inference Engine considers the 
-layer to be unsupported and reports an error. To see the layers that 
-are supported by each device plugin for the Inference Engine, refer to 
-the [Supported Devices documentation](https://docs.openvinotoolkit.org/2019_R1.1/_docs_IE_DG_supported_plugins_Supported_Devices.html).
+Custom layers are layers that are not in the supported list of layers of OpenVino. The list of supported layer is different for each framework, such as Tensorflow, PyTorch, and Caffe. There are situations where the model we would like to use may include such layers, so it is important to be able to handle them. The handling of custom layers is different for each deep learning framework. Details about that can be found over at the [OpenVino documentation.]( https://docs.openvinotoolkit.org/2019_R3/_docs_MO_DG_prepare_model_customize_model_optimizer_Customize_Model_Optimizer.html)
 
-### Custom Layers implementation
-
-When implementing a custom layer for your pre-trained model in the
-Open Vino toolkit, you will need to add extensions to both the Model 
-Optimizer and the Inference Engine.
-
-#### Model optimizer
-
-The following figure shows the basic processing steps for the Model Optimizer highlighting the two necessary custom layer extensions, the Custom Layer Extractor and the Custom Layer Operation.
-
-![](images/MO_extensions_flow.png)
-
-<details>
-  <summary>Source</summary>
-  https://docs.openvinotoolkit.org/
-</details>
-
-The Model Optimizer first extracts information from the input model which includes the topology of the model layers along with parameters, input and output format, etc., for each layer. The model is then optimized from the various known characteristics of the layers, interconnects, and data flow which partly comes from the layer operation providing details including the shape of the output for each layer. Finally, the optimized model is output to the model IR files needed by the Inference Engine to run the model.
-
-There are majorly two custom layer extensions required-
-
-1. Custom Layer Extractor
-
-Responsible for identifying the custom layer operation and extracting the parameters for each instance of the custom layer. The layer parameters are stored per instance and used by the layer operation before finally appearing in the output IR. Typically the input layer parameters are unchanged, which is the case covered by this tutorial.
-
-2. Custom Layer Operation
-
-Responsible for specifying the attributes that are supported by the custom layer and computing the output shape for each instance of the custom layer from its parameters. The `--mo-op` command-line argument shown in the examples below generates a custom layer operation for the Model Optimizer.
-
-#### Inference Engine
-
-The following figure shows the basic flow for the Inference Engine highlighting two custom layer extensions for the CPU and GPU Plugins, the Custom Layer CPU extension and the Custom Layer GPU Extension.
-
-![](images/IE_extensions_flow.png)
-
-<details>
-  <summary>Source</summary>
-  https://docs.openvinotoolkit.org/
-</details>
-
-Each device plugin includes a library of optimized implementations to execute known layer operations which must be extended to execute a custom layer. The custom layer extension is implemented according to the target device:
-
-1. Custom Layer CPU Extension
-
-A compiled shared library (`.so` or `.dll` binary) needed by the CPU Plugin for executing the custom layer on the CPU.
-
-2. Custom Layer GPU Extension
-
-OpenCL source code (`.cl`) for the custom layer kernel that will be compiled to execute on the GPU along with a layer description file (`.xml`) needed by the GPU Plugin for the custom layer kernel.
-
-#### Using the model extension generator
-
-The Model Extension Generator tool generates template source code files for each of the extensions needed by the Model Optimizer and the Inference Engine.
-
-The script for this is available here-  `/opt/intel/openvino/deployment_tools/tools/extension_generator/extgen.py`
-
-You could use this script in the following manner:
-
-```
-usage: You can use any combination of the following arguments:
-
-Arguments to configure extension generation in the interactive mode:
-
-optional arguments:
-  -h, --help            show this help message and exit
-  --mo-caffe-ext        generate a Model Optimizer Caffe* extractor
-  --mo-mxnet-ext        generate a Model Optimizer MXNet* extractor
-  --mo-tf-ext           generate a Model Optimizer TensorFlow* extractor
-  --mo-op               generate a Model Optimizer operation
-  --ie-cpu-ext          generate an Inference Engine CPU extension
-  --ie-gpu-ext          generate an Inference Engine GPU extension
-  --output_dir OUTPUT_DIR
-                        set an output directory. If not specified, the current
-                        directory is used by default.
-```
+For Tensorflow, those layers are registered as extensions to the Model Optimizer. As a result, the Model Optimizer generates a valid Intermediate Representation for each of these layers.
 
 ### Reasons for handling custom layers
 
@@ -119,54 +36,17 @@ I ended up using a model from Intel OpenVino Model Zoo due to poor performance o
 
 ## Assess Model Use Cases
 
-I beleive a similar application could be widely useful, here are a few of which I feel have a great impact
+Some of the potential use cases of the people counter app are of interest for retail commerce to know how and when customers get into the store or are in some point of interest. It’s also usefull for security control, measuring how people performs in restricted or controlled spaces.
 
-1. Make Business detection in stores
-
-With reliable people counting application in stores could help businesses make effective deisions and help in-
-
-* Compare performance across different areas
-* Calculate people patterns
-* Optimise product placing strategies
-* Optimize staff placing
-
-2. Queue managemnet techniques
-
-We all might have experienced leaving a store due to high amount of queues, a similar application could help in that.
-
-* Increase customer retention
-* Calculate percentage of people who leave stores due to long queues
-* Optimize staffs
-* Help in right placement of billing desks
-
-3. Space management
-
-This application could also help in making best use of spaces in public areas and also aid in placement of furniture and/ or artifacts.
-
-* Know the area in a space where people crowd the most
-* Discover when stores generate the most traffic which might open sale opurtunities
-
-4. In Airports
-
-Airports are one of the busiest places and with so much data with an application like this, some wonderful insights could be derived.
-
-* Identify which shops perform well
-* Make sure each shop is placed at the optimal position
-* Manage queues
-
-5. As a security system
-
-This application could also be used in security systems, The system could identify if a person has broken in a shop and in the case capture a photo or send alerts. This could be an automated and effective solution to thefts.
+Each of these use cases would be useful because allows to improve marketing and control strategies both in the retail store or in the security control.
 
 ## Assess Effects on End User Needs
 
-Lighting, model accuracy, and camera focal length/image size have different effects on a deployed edge model. The potential effects of each of these are as follows:
-
-* In case of  poor lighting model's accuracy may fail dramatically or even completely drop close to zero. However, this can be mitigated with good hardware that can process the images from poorly lit regions before passing it to the model.
-
-* Natural decrease in model accuracy during conversion or other stages may make the model unusable if the doesn't perform the required task such as detecting risk of crimes as mentioned above in use-cases. A effectuve solution to this would be to put the model into validation mode for an hour or so. During this time the various devices could perform federated learning to give better performance. This might drastically provide a better performance.
-
-* Distorted input from camera due to change in focal length and/or image size will affect the model because the model may fail to make sense of the input and the distored input may not be detected properly by the model. An approach to solve this would be to use some augmnted images while training models and specifying the threshold skews, this could be a potential solution. However, the ranges would need to be selected correctly or it could lead to a loss of accuracy.
+Lighting, model accuracy, and camera focal length/image size have different effects on a
+deployed edge model.
+Lighting, focal length a,d image size are relevant to system behavior, a bad lighting can decrease model performance by diffusing image info, image size is relevant although YOLO models are quite size independent and the same happens with focal length.
+Camera vision angle is also relevant for this kind of tasks and for performance of the system. Depending on the dataset used, (COCO in this model) some kind of angles can decrease model accuracy and also increase number of occlusions with the problems this generates in detection.
+Model accuracy is relevant due to the amount of false positives or negatives it can generate degrading system performance.
 
 ## Model Research
 
